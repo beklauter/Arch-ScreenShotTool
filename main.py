@@ -59,7 +59,6 @@ class SelectionArea(QtWidgets.QWidget):
             font.setBold(True)
             painter.setFont(font)
 
-            # Text background
             text_rect = painter.fontMetrics().boundingRect(text)
             text_rect.moveCenter(selection.center())
             text_rect.moveBottom(selection.top() - 5)
@@ -104,169 +103,17 @@ class SelectionArea(QtWidgets.QWidget):
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Escape:
             self.close()
+            sys.exit(0)
 
 
-class ModernButton(QtWidgets.QPushButton):
-    def __init__(self, text, parent=None, icon=None):
-        super().__init__(text, parent)
-        self.setFixedHeight(40)
-        self.setCursor(QtCore.Qt.PointingHandCursor)
-
-        if icon:
-            self.setIcon(icon)
-
-
-class SnippingTool(QtWidgets.QMainWindow):
+class DirectScreenshotTool:
     def __init__(self):
-        super().__init__()
-        self.initUI()
-
         self.screenshots_dir = os.path.expanduser("~/Pictures/Screenshots")
         os.makedirs(self.screenshots_dir, exist_ok=True)
         self.temp_screenshot = None
-        self.processing = False
+        self.file_format = "png"
 
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #292d3e;
-            }
-            QWidget {
-                color: #eeffff;
-                font-family: 'Segoe UI', Arial, sans-serif;
-            }
-            QPushButton {
-                background-color: #3c4051;
-                border: none;
-                border-radius: 4px;
-                color: #eeffff;
-                font-weight: bold;
-                padding: 8px 16px;
-            }
-            QPushButton:hover {
-                background-color: #444b6a;
-            }
-            QPushButton:pressed {
-                background-color: #292d3e;
-            }
-            QLabel {
-                font-size: 13px;
-            }
-            QComboBox {
-                background-color: #3c4051;
-                border: none;
-                border-radius: 4px;
-                color: #eeffff;
-                padding: 6px;
-                min-width: 6em;
-            }
-            QComboBox:hover {
-                background-color: #444b6a;
-            }
-            QComboBox::drop-down {
-                width: 20px;
-                border: none;
-            }
-            QComboBox::down-arrow {
-                image: url(dropdown-arrow.png);
-            }
-            QCheckBox {
-                spacing: 8px;
-            }
-            QCheckBox::indicator {
-                width: 18px;
-                height: 18px;
-                border-radius: 2px;
-                border: 2px solid #575f77;
-            }
-            QCheckBox::indicator:checked {
-                background-color: #82aaff;
-                border: 2px solid #82aaff;
-                image: url(checkbox.png);
-            }
-        """)
-
-    def initUI(self):
-        self.setWindowTitle('Screenshot Tool')
-        self.setGeometry(300, 300, 360, 250)
-        self.setWindowIcon(QtGui.QIcon.fromTheme("camera-photo"))
-
-        main_layout = QtWidgets.QVBoxLayout()
-        main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(15)
-
-        central_widget = QtWidgets.QWidget()
-        self.setCentralWidget(central_widget)
-        central_widget.setLayout(main_layout)
-
-        header_layout = QtWidgets.QHBoxLayout()
-        title_label = QtWidgets.QLabel("Screenshot Tool")
-        title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
-        header_layout.addWidget(title_label)
-        header_layout.addStretch()
-        main_layout.addLayout(header_layout)
-
-        separator = QtWidgets.QFrame()
-        separator.setFrameShape(QtWidgets.QFrame.HLine)
-        separator.setFrameShadow(QtWidgets.QFrame.Sunken)
-        separator.setStyleSheet("background-color: #3c4051;")
-        main_layout.addWidget(separator)
-
-        self.screenshot_btn = ModernButton('Capture Screenshot')
-        self.screenshot_btn.setIcon(QtGui.QIcon.fromTheme("camera-photo"))
-        self.screenshot_btn.clicked.connect(self.take_screenshot)
-        main_layout.addWidget(self.screenshot_btn)
-
-        self.status_label = QtWidgets.QLabel('Ready to capture')
-        self.status_label.setStyleSheet("color: #c3e88d; font-size: 12px;")
-        main_layout.addWidget(self.status_label)
-
-        options_group = QtWidgets.QGroupBox("Options")
-        options_group.setStyleSheet("""
-            QGroupBox {
-                border: 1px solid #3c4051;
-                border-radius: 5px;
-                margin-top: 10px;
-                padding-top: 10px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
-            }
-        """)
-        options_layout = QtWidgets.QVBoxLayout(options_group)
-
-        format_layout = QtWidgets.QHBoxLayout()
-        format_layout.setContentsMargins(0, 0, 0, 0)
-        format_label = QtWidgets.QLabel('Format:')
-        self.format_combo = QtWidgets.QComboBox()
-        self.format_combo.addItems(['png', 'jpg'])
-        format_layout.addWidget(format_label)
-        format_layout.addWidget(self.format_combo)
-        format_layout.addStretch()
-        options_layout.addLayout(format_layout)
-
-        self.close_after = QtWidgets.QCheckBox("Close after capture")
-        self.close_after.setChecked(True)
-        options_layout.addWidget(self.close_after)
-
-        main_layout.addWidget(options_group)
-
-        main_layout.addStretch()
-
-        shortcut_label = QtWidgets.QLabel("Press Win+Shift+S to capture anytime")
-        shortcut_label.setStyleSheet("color: #7f85a3; font-size: 11px;")
-        shortcut_label.setAlignment(QtCore.Qt.AlignCenter)
-        main_layout.addWidget(shortcut_label)
-
-    def take_screenshot(self):
-        if self.processing:
-            return
-        self.processing = True
-        self.hide()  # Hide window while taking screenshot
-        QtCore.QTimer.singleShot(300, self.prepare_selection)
-
-    def prepare_selection(self):
+    def start_capture(self):
         try:
             with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
                 self.temp_screenshot = temp_file.name
@@ -277,19 +124,17 @@ class SnippingTool(QtWidgets.QMainWindow):
 
             self.selection_widget = SelectionArea(pixmap)
             self.selection_widget.selection_completed.connect(self.process_selection)
-            self.selection_widget.show()
 
         except Exception as e:
-            self.status_label.setText(f'Error: {str(e)}')
-            self.status_label.setStyleSheet("color: #f07178; font-size: 12px;")
-            self.show()
-            self.processing = False
+            print(f"Error: {str(e)}")
+            if self.temp_screenshot and os.path.exists(self.temp_screenshot):
+                os.unlink(self.temp_screenshot)
+            sys.exit(1)
 
     def process_selection(self, rect):
         try:
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-            file_format = self.format_combo.currentText().lower()
-            filename = f"screenshot_{timestamp}.{file_format}"
+            filename = f"screenshot_{timestamp}.{self.file_format}"
             save_path = os.path.join(self.screenshots_dir, filename)
 
             from PIL import Image
@@ -305,26 +150,27 @@ class SnippingTool(QtWidgets.QMainWindow):
 
             subprocess.Popen(['wl-copy', '-t', 'image/png', save_path])
 
-            if self.close_after.isChecked():
-                os._exit(0)
-            else:
-                self.status_label.setText(f'Saved to: {save_path}')
-                self.status_label.setStyleSheet("color: #c3e88d; font-size: 12px;")
-                self.show()
+            QtCore.QTimer.singleShot(100, lambda: os._exit(0))
 
         except Exception as e:
-            self.status_label.setText(f'Error: {str(e)}')
-            self.status_label.setStyleSheet("color: #f07178; font-size: 12px;")
-            self.show()
-        finally:
-            self.processing = False
+            print(f"Error: {str(e)}")
+            if self.temp_screenshot and os.path.exists(self.temp_screenshot):
+                os.unlink(self.temp_screenshot)
+            sys.exit(1)
 
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
-    app.setQuitOnLastWindowClosed(True)
-    tool = SnippingTool()
-    tool.show()
+
+    if len(sys.argv) > 1 and sys.argv[1] in ["png", "jpg"]:
+        file_format = sys.argv[1]
+    else:
+        file_format = "png"
+
+    tool = DirectScreenshotTool()
+    tool.file_format = file_format
+    tool.start_capture()
+
     sys.exit(app.exec_())
 
 
